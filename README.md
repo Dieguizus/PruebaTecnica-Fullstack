@@ -331,7 +331,7 @@ Este proyecto está bajo la Licencia MIT. Ver el archivo [LICENSE](LICENSE) para
 
 ## 👥 Autores
 
-- **Tu Nombre** - *Desarrollo inicial* - [Dieguizus](https://github.com/tu-usuario)
+- **Tu Nombre** - *Desarrollo inicial* - [Dieguizus](https://github.com/Dieguizus)
 
 ## 🙏 Agradecimientos
 
@@ -345,10 +345,7 @@ Este proyecto está bajo la Licencia MIT. Ver el archivo [LICENSE](LICENSE) para
 
 Si tienes preguntas o necesitas ayuda:
 
-- 📧 Email: tu-email@ejemplo.com
-- 🐛 Issues: [GitHub Issues](https://github.com/tu-usuario/sistema-gestion-sucursales/issues)
-- 📖 Wiki: [Documentación completa](https://github.com/tu-usuario/sistema-gestion-sucursales/wiki)
-
+- 📧 Email: reyesdonaldo15@gmail.com
 ---
 
 ⭐ **¡No olvides dar una estrella al repo si te fue útil!** ⭐
