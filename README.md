@@ -1,4 +1,4 @@
-# Sistema de Gestión de Sucursales - Somos Crédito
+# Sistema de Gestión de Sucursales - Para prueba Tecnica
 
 Sistema completo de gestión de sucursales desarrollado con **React** (frontend) y **Node.js + Express** (backend). Permite administrar información de sucursales con funcionalidades CRUD completas, búsqueda avanzada y interfaz moderna.
 
