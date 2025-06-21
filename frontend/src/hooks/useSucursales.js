@@ -125,49 +125,145 @@ export const useSucursales = () => {
   }, []);
 
   // 🆕 NUEVA FUNCIÓN: Buscar y agregar sucursal eliminada por ID
-  const searchAndAddDeletedSucursal = useCallback(async (id) => {
-    console.log('🔍 Buscando sucursal eliminada ID:', id);
-    setLoading(true);
-    setError(null);
-    
-    try {
-      // Verificar si ya está en la lista local
-      const existsInLocal = sucursales.find(s => s.id.toString() === id.toString());
-      if (existsInLocal) {
-        console.log('✅ Sucursal ya existe en la lista local');
-        return existsInLocal;
-      }
-      
-      // Buscar en el servidor
-      const sucursal = await sucursalService.getById(id);
-      
-      if (sucursal) {
-        console.log('✅ Sucursal encontrada:', sucursal);
-        
-        // Agregar a la lista local
-        setSucursales(prev => {
-          const exists = prev.find(s => s.id === sucursal.id);
-          if (!exists) {
-            return [...prev, sucursal];
-          }
-          return prev;
-        });
-        
-        return sucursal;
-      }
-      
-      throw new Error('Sucursal no encontrada');
-      
-    } catch (err) {
-      console.error('❌ Error al buscar sucursal eliminada:', err);
-      const errorMessage = `No se encontró sucursal con ID: ${id}`;
-      setError(errorMessage);
-      throw new Error(errorMessage);
-    } finally {
+const searchAndAddDeletedSucursal = useCallback(async (id) => {
+  console.log('🔍 Buscando sucursal eliminada ID:', id);
+  setLoading(true);
+  setError(null);
+  
+  try {
+    // Verificar si ya está en la lista local
+    const existsInLocal = sucursales.find(s => s.id.toString() === id.toString());
+    if (existsInLocal) {
+      console.log('✅ Sucursal ya existe en la lista local');
       setLoading(false);
+      
+      // Crear un objeto con información adicional sobre el estado
+      return {
+        ...existsInLocal,
+        _searchResult: {
+          wasAlreadyActive: true,
+          message: 'La sucursal ya estaba en la lista'
+        }
+      };
     }
-  }, [sucursales]);
-
+    
+    // ESTRATEGIA: Usar el endpoint de reactivación para encontrar sucursales eliminadas
+    try {
+      console.log('🔄 Intentando reactivar sucursal...');
+      const reactivateResponse = await sucursalService.reactivate(id);
+      
+      console.log('✅ Respuesta de reactivación:', reactivateResponse);
+      
+      // Extraer la sucursal de la respuesta
+      const sucursal = reactivateResponse?.data || reactivateResponse;
+      
+      if (!sucursal || !sucursal.id) {
+        console.warn('⚠️ Respuesta de reactivación sin datos válidos:', reactivateResponse);
+        throw new Error('Respuesta del servidor incompleta');
+      }
+      
+      console.log('✅ Sucursal reactivada exitosamente:', sucursal);
+      
+      // Crear objeto sucursal limpio
+      const sucursalLimpia = {
+        id: sucursal.id,
+        nombre: sucursal.nombre || '',
+        direccion: sucursal.direccion || '',
+        telefono: sucursal.telefono || '',
+        activo: true, // Reactivada
+        deletedAt: null, // Ya no está eliminada
+        createdAt: sucursal.createdAt,
+        updatedAt: sucursal.updatedAt || new Date().toISOString(),
+        _searchResult: {
+          wasReactivated: true,
+          message: 'Sucursal encontrada y reactivada'
+        }
+      };
+      
+      // Agregar a la lista local
+      setSucursales(prev => {
+        const exists = prev.find(s => s.id === sucursalLimpia.id);
+        if (!exists) {
+          console.log('📝 Agregando sucursal reactivada a la lista');
+          return [...prev, sucursalLimpia];
+        } else {
+          console.log('📝 Actualizando sucursal existente en la lista');
+          return prev.map(s => 
+            s.id === sucursalLimpia.id ? sucursalLimpia : s
+          );
+        }
+      });
+      
+      return sucursalLimpia;
+      
+    } catch (reactivateError) {
+      console.error('❌ Error en reactivación:', reactivateError);
+      
+      // Analizar el tipo de error
+      if (reactivateError.response?.status === 404) {
+        throw new Error(`No se encontró sucursal con ID: ${id}`);
+      } else if (reactivateError.response?.status === 400) {
+        // Error 400 generalmente significa que ya está activa
+        const errorMessage = reactivateError.response?.data?.message || '';
+        
+        if (errorMessage.toLowerCase().includes('ya está activa') || 
+            errorMessage.toLowerCase().includes('already active')) {
+          console.log('💡 Sucursal ya está activa, buscando...');
+          
+          try {
+            const getResponse = await sucursalService.getById(id);
+            const sucursal = getResponse?.data || getResponse;
+            
+            if (!sucursal || !sucursal.id) {
+              throw new Error('Sucursal encontrada pero sin datos válidos');
+            }
+            
+            console.log('✅ Sucursal ya estaba activa:', sucursal);
+            
+            // Crear objeto con información de que ya estaba activa
+            const sucursalConInfo = {
+              ...sucursal,
+              _searchResult: {
+                wasAlreadyActive: true,
+                message: 'La sucursal ya estaba activa'
+              }
+            };
+            
+            // Agregar a la lista si no existe
+            setSucursales(prev => {
+              const exists = prev.find(s => s.id === sucursal.id);
+              if (!exists) {
+                return [...prev, sucursalConInfo];
+              }
+              // Actualizar con la información adicional
+              return prev.map(s => 
+                s.id === sucursal.id ? sucursalConInfo : s
+              );
+            });
+            
+            return sucursalConInfo;
+            
+          } catch (getError) {
+            console.error('❌ Error en búsqueda normal:', getError);
+            throw new Error(`No se encontró sucursal con ID: ${id}`);
+          }
+        } else {
+          throw new Error(`Error al buscar sucursal: ${errorMessage}`);
+        }
+      } else {
+        throw new Error(`Error al buscar sucursal: ${reactivateError.response?.data?.message || reactivateError.message}`);
+      }
+    }
+    
+  } catch (err) {
+    console.error('❌ Error general en búsqueda:', err);
+    const errorMessage = err.message || `No se encontró sucursal con ID: ${id}`;
+    setError(errorMessage);
+    throw new Error(errorMessage);
+  } finally {
+    setLoading(false);
+  }
+}, [sucursales]);
   // Reactivar sucursal
   const reactivateSucursal = useCallback(async (id) => {
     console.log('✅ Reactivando sucursal ID:', id);
